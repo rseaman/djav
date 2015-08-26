@@ -92,6 +92,8 @@ class Traffic(APIView):
                     tmp_dict['visits'].append(json.loads(str(v)))
                 data.append(tmp_dict)
 
+        data = sorted(data, key=lambda k: k['alienvaultid'])
+
         response = Response(data)
 
         return response

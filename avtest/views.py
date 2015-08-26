@@ -5,7 +5,7 @@ from rest_framework.reverse import reverse
 from rest_framework.views import APIView
 from rest_framework import status
 from serializers import *
-from datetime import datetime
+from datetime import datetime, timedelta
 from models import User, Visit
 from threat import *
 
@@ -38,26 +38,21 @@ class IPDetailsView(APIView):
 
         # Set UTC time
         current_datetime = datetime.utcnow()
-        epoch = int((current_datetime - datetime(1970, 1, 1)).total_seconds())
+        epoch            = int((current_datetime - datetime(1970, 1, 1)).total_seconds())
+        expires          = addYear(current_datetime, 1)
 
         # Handle Cookies
         if 'alienvaultid' in request.COOKIES:
             avid = request.COOKIES['alienvaultid']
 
-            response.set_cookie('last_visit', epoch)
+            response.set_cookie('last_visit', epoch, expires=expires)
 
-            last_visit = request.COOKIES['last_visit']
-            last_visit_time = datetime.fromtimestamp(int(last_visit))
-            # If cookie is older than a year, expire it.
-            if (current_datetime - last_visit_time).days > 365:
-                response.delete_cookie('alienvaultid')
-                response.delete_cookie('last_visit')
         else:
             # Didn't find cookie, set one.
             avid = ''.join(["%s" % random.randint(0, 9)
                            for num in range(0, 11)])
-            response.set_cookie('alienvaultid', avid)
-            response.set_cookie('last_visit', epoch)
+            response.set_cookie('alienvaultid', avid, expires=expires)
+            response.set_cookie('last_visit', epoch, expires=expires)
 
         user = User(alienvaultid=avid)
         user.save()
@@ -100,3 +95,21 @@ class Traffic(APIView):
         response = Response(data)
 
         return response
+
+
+##############################################################################
+def addYear(date, year):
+    """
+    Takes a datetime object and adds years to it.
+    """
+
+    result = date + timedelta(366 * year)
+
+    if year > 0:
+        while result.year - date.year > year or date.month < result.month or date.day < result.day:
+            result += timedelta(-1)
+    elif year < 0:
+        while result.year - date.year < year or date.month > result.month or date.day > result.day:
+            result += timedelta(1)
+
+    return result
